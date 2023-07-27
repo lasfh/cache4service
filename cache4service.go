@@ -38,9 +38,11 @@ func NewCacheForService[K ~string](
 	chanSize uint,
 ) CacheForService[K] {
 	return &cacheService[K]{
-		wg:        &sync.WaitGroup{},
-		toDiscard: make(chan K, chanSize),
-		toSave:    make(chan valueToSave[K], chanSize),
+		wg:            &sync.WaitGroup{},
+		toDiscard:     make(chan K, chanSize),
+		toSave:        make(chan valueToSave[K], chanSize),
+		customKeeper:  customKeeper,
+		customRemover: customRemover,
 	}
 }
 
