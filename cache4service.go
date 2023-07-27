@@ -2,6 +2,7 @@ package cache4service
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"time"
 )
@@ -10,6 +11,7 @@ type CacheForService[K ~string] interface {
 	SetCustomKeeper(f func(ctx context.Context, key K, value any, expiration time.Duration) error)
 	SetCustomRemover(f func(ctx context.Context, key K) error)
 	ToSave(key K, value any, expiration time.Duration)
+	ToSaveJSON(key K, value any, expiration time.Duration)
 	ToDiscard(keys ...K)
 	Watch()
 	Wait()
@@ -24,9 +26,10 @@ type cacheService[K ~string] struct {
 }
 
 type valueToSave[K ~string] struct {
-	key   K
-	value any
-	exp   time.Duration
+	key    K
+	value  any
+	exp    time.Duration
+	isJSON bool
 }
 
 func NewCacheForService[K ~string](
@@ -75,10 +78,21 @@ func (cs *cacheService[K]) watchKeeperChan() {
 	defer cs.wg.Done()
 
 	for item := range cs.toSave {
+		value := item.value
+
+		if item.isJSON {
+			v, err := json.Marshal(value)
+			if err != nil {
+				continue
+			}
+
+			value = v
+		}
+
 		cs.customKeeper(
 			context.Background(),
 			item.key,
-			item.value,
+			value,
 			item.exp,
 		)
 	}
@@ -89,6 +103,15 @@ func (cs *cacheService[K]) ToSave(key K, value any, expiration time.Duration) {
 		key:   key,
 		value: value,
 		exp:   expiration,
+	}
+}
+
+func (cs *cacheService[K]) ToSaveJSON(key K, value any, expiration time.Duration) {
+	cs.toSave <- valueToSave[K]{
+		key:    key,
+		value:  value,
+		exp:    expiration,
+		isJSON: true,
 	}
 }
 
