@@ -40,6 +40,7 @@ func NewCacheForService[K ~string](
 	return &cacheService[K]{
 		wg:        &sync.WaitGroup{},
 		toDiscard: make(chan K, chanSize),
+		toSave:    make(chan valueToSave[K], chanSize),
 	}
 }
 
